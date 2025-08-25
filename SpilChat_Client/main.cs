@@ -934,8 +934,9 @@ namespace ChatApplication
         private string selectedChatUser = "";
         private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         // Okunmamış mesaj sayıları (isim -> sayı)
-private readonly Dictionary<string, int> _unread =
-    new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> _unread =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
 
 
         public MainForm(string username)
@@ -948,9 +949,11 @@ private readonly Dictionary<string, int> _unread =
             Shown += async (_, __) =>
             {
                 await LoadContactsAsync();
-                await LoadChatsAsync();
+                await LoadChatsAsync();               
             };
         }
+
+
 
         private void InitializeComponent()
         {
@@ -979,6 +982,13 @@ private readonly Dictionary<string, int> _unread =
             if (string.IsNullOrWhiteSpace(term)) return true;
             return CultureInfo.CurrentCulture.CompareInfo.IndexOf(source ?? "",
                 term, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
+        }
+        private static string NormalizeContact(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            // "👤 " önekini at
+            if (text.StartsWith("👤 ")) return text.Substring(2);
+            return text.Trim();
         }
 
         private void StyleListViewAsCards(
@@ -1117,6 +1127,27 @@ private readonly Dictionary<string, int> _unread =
             };
             contactsListView.Columns.Add("", 250);
             contactsListView.ItemSelectionChanged += ContactsListView_ItemSelectionChanged;
+
+            contactsListView.View = View.List;
+            contactsListView.OwnerDraw = true;
+            contactsListView.FullRowSelect = true;
+            contactsListView.HideSelection = false;
+
+            // (İsteğe bağlı) titreme azaltma - bazı sürümlerde Reflection korumalı olabilir
+            try
+            {
+                typeof(ListView).InvokeMember(
+                    "DoubleBuffered",
+                    System.Reflection.BindingFlags.SetProperty |
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic,
+                    null, contactsListView, new object[] { true });
+            }
+            catch { /* yoksay */ }
+
+            // Çizim olayı
+            contactsListView.DrawItem += ContactsListView_DrawItem;
+
 
             contactsTab.Controls.Add(contactsSearchPanel);
             contactsTab.Controls.Add(contactsListView);
@@ -1385,6 +1416,141 @@ private readonly Dictionary<string, int> _unread =
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private void ContactsListView_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            e.DrawBackground();
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Soldaki kullanıcı ikonu (Segoe MDL2 Assets → U+E77B)
+            int iconX = e.Bounds.Left + 12;
+            int iconY = e.Bounds.Top + (e.Bounds.Height - 16) / 2; // 16px hizalama
+            using (var iconFont = new Font("Segoe MDL2 Assets", 14f, FontStyle.Regular))
+            using (var iconBrush = new SolidBrush(Color.FromArgb(90, 90, 90)))
+            {
+                // U+E77B "Contact"
+                g.DrawString("\uE77B", iconFont, iconBrush, iconX, iconY - 2); // -2 küçük optik düzeltme
+            }
+
+            // Metin
+            string name = NormalizeContact(e.Item.Text); // artık zaten sade isim
+            using (var textBrush = new SolidBrush(e.Item.ForeColor))
+            {
+                var textFont = e.Item.Font; // Bold olabilir
+                                            // ikon + padding kadar soldan kay
+                int textLeft = iconX + 18 + 8;
+                var textSize = g.MeasureString(name, textFont);
+                float textY = e.Bounds.Top + (e.Bounds.Height - textSize.Height) / 2f;
+                g.DrawString(name, textFont, textBrush, textLeft, textY);
+            }
+
+            // Rozet (hiçbir değişiklik yok)
+            int count;
+            if (_unread.TryGetValue(name, out count) && count > 0)
+            {
+                string badgeText = (count > 99) ? "99+" : count.ToString();
+                using (var badgeFont = new Font(e.Item.Font.FontFamily, Math.Max(9f, e.Item.Font.Size - 1f), FontStyle.Bold))
+                {
+                    var sz = g.MeasureString(badgeText, badgeFont);
+                    int h = Math.Max(16, (int)Math.Ceiling(sz.Height) + 6);
+                    int w = Math.Max(h, (int)Math.Ceiling(sz.Width) + 10);
+                    int bx = e.Bounds.Right - w - 10;
+                    int by = e.Bounds.Top + (e.Bounds.Height - h) / 2;
+                    var rect = new Rectangle(bx, by, w, h);
+                    int r = h / 2;
+
+                    using (var path = RoundedRect(rect, r))
+                    using (var fill = new SolidBrush(Color.FromArgb(232, 63, 63)))
+                    using (var white = new SolidBrush(Color.White))
+                    {
+                        g.FillPath(fill, path);
+                        float sx = bx + (w - sz.Width) / 2f;
+                        float sy = by + (h - sz.Height) / 2f - 1f;
+                        g.DrawString(badgeText, badgeFont, white, sx, sy);
+                    }
+                }
+            }
+
+            e.DrawFocusRectangle();
+        }
+
+        private void InvalidateContact(string name)
+        {
+            if (contactsListView.IsDisposed) return;
+
+            if (contactsListView.InvokeRequired)
+            {
+                contactsListView.BeginInvoke(new Action<string>(InvalidateContact), name);
+                return;
+            }
+
+            foreach (ListViewItem it in contactsListView.Items)
+            {
+                if (string.Equals(NormalizeContact(it.Text),
+                  NormalizeContact(name),
+                  StringComparison.OrdinalIgnoreCase))
+                {
+                    contactsListView.Invalidate(it.Bounds);
+                    break;
+                }
+            }
+        }
+        private void ResetUnreadFor(string peer)
+        {
+            peer = NormalizeContact(peer);
+            if (_unread.ContainsKey(peer))
+            {
+                _unread[peer] = 0;
+                InvalidateContact(peer);
+            }
+        }
+
+        // Sunucudan yeni mesaj geldiğinde burayı çağır:
+        // fromUser: gönderen kişi (peer), text: mesaj, time: zaman
+        private void OnIncomingMessage(string fromUser, string text, DateTime time)
+        {
+            fromUser = NormalizeContact(fromUser);
+
+            if (IsActiveConversation(fromUser))
+            {
+                // açık sohbetse direkt ekrana düşür
+                AddBubble(text, false, time);
+                ScrollChatToBottom();
+            }
+            else
+            {
+                // kapalı sohbetse okunmamış say
+                int c;
+                if (_unread.TryGetValue(fromUser, out c))
+                    _unread[fromUser] = c + 1;
+                else
+                    _unread[fromUser] = 1;
+
+                InvalidateContact(fromUser);
+            }
+
+            // (İsteğe bağlı) soldaki "Sohbetler" kartlarını güncelle
+            // _ = LoadChatsAsync();
+        }
+
+        // Aktif sohbet etiketi üzerinden kontrol (chatTitleLabel mevcutsa)
+        private bool IsActiveConversation(string peer)
+        {
+            string current = (chatTitleLabel != null) ? chatTitleLabel.Text : null;
+            return string.Equals(current, peer, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            GraphicsPath gp = new GraphicsPath();
+            int d = radius * 2;
+            gp.AddArc(r.Left, r.Top, d, d, 180, 90);
+            gp.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+            gp.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            gp.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+            gp.CloseFigure();
+            return gp;
+        }
 
         private void FilterContacts(string query)
         {
@@ -1397,7 +1563,7 @@ private readonly Dictionary<string, int> _unread =
             {
                 contactsListView.Items.Clear();
                 foreach (var u in filtered)
-                    contactsListView.Items.Add(new ListViewItem($"👤 {u}"));
+                    contactsListView.Items.Add(new ListViewItem(u));
             }
             finally
             {
@@ -1466,6 +1632,7 @@ private readonly Dictionary<string, int> _unread =
             string contactName = e.Item.Text.Replace("👤 ", "");
             chatTitleLabel.Text = contactName;
             selectedChatUser = contactName;
+            ResetUnreadFor(contactName);
             LoadChatHistory(contactName);
         }
 
@@ -1478,6 +1645,7 @@ private readonly Dictionary<string, int> _unread =
 
             chatTitleLabel.Text = peer;
             selectedChatUser = peer;
+            ResetUnreadFor(peer);
             LoadChatHistory(peer);
         }
 
@@ -1522,6 +1690,7 @@ private readonly Dictionary<string, int> _unread =
 
             chatFlow.ResumeLayout();
             ScrollChatToBottom();
+            ResetUnreadFor(chatName);
         }
 
         private void AddBubble(string text, bool outgoing, DateTime time)
