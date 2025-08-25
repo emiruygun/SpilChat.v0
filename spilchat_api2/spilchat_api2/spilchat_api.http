@@ -1,0 +1,6 @@
+@spilchat_api_HostAddress = http://localhost:5101
+
+GET {{spilchat_api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

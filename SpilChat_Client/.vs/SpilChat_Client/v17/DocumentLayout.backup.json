@@ -1,0 +1,125 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|c:\\users\\emir uygun\\source\\repos\\spilchat_client\\main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|solutionrelative:main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\packages.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|solutionrelative:packages.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|solutionrelative:app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\models\\messagedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|solutionrelative:models\\messagedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\properties\\assemblyinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|solutionrelative:properties\\assemblyinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\properties\\resources.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7D889D0F-D484-46A1-9F9D-AFD63FD01D8B}|appc.csproj|solutionrelative:properties\\resources.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "main.cs",
+              "DocumentMoniker": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\main.cs",
+              "RelativeDocumentMoniker": "main.cs",
+              "ToolTip": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\main.cs*",
+              "RelativeToolTip": "main.cs*",
+              "ViewState": "AgIAAEMEAAAAAAAAAAAkwF4EAABbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-15T08:43:45.949Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Resources.Designer.cs",
+              "DocumentMoniker": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\Properties\\Resources.Designer.cs",
+              "RelativeDocumentMoniker": "Properties\\Resources.Designer.cs",
+              "ToolTip": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\Properties\\Resources.Designer.cs",
+              "RelativeToolTip": "Properties\\Resources.Designer.cs",
+              "ViewState": "AgIAADAAAAAAAAAAAAAYwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-15T13:58:21.434Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "AssemblyInfo.cs",
+              "DocumentMoniker": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\Properties\\AssemblyInfo.cs",
+              "RelativeDocumentMoniker": "Properties\\AssemblyInfo.cs",
+              "ToolTip": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\Properties\\AssemblyInfo.cs",
+              "RelativeToolTip": "Properties\\AssemblyInfo.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-15T13:58:15.109Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "MessageDto.cs",
+              "DocumentMoniker": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\Models\\MessageDto.cs",
+              "RelativeDocumentMoniker": "Models\\MessageDto.cs",
+              "ToolTip": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\Models\\MessageDto.cs",
+              "RelativeToolTip": "Models\\MessageDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-08-15T13:57:09.147Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "packages.config",
+              "DocumentMoniker": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\packages.config",
+              "RelativeDocumentMoniker": "packages.config",
+              "ToolTip": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\packages.config",
+              "RelativeToolTip": "packages.config",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000601|",
+              "WhenOpened": "2025-08-15T13:56:10.21Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "App.config",
+              "DocumentMoniker": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\App.config",
+              "RelativeDocumentMoniker": "App.config",
+              "ToolTip": "C:\\Users\\Emir Uygun\\source\\repos\\SpilChat_Client\\App.config",
+              "RelativeToolTip": "App.config",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000601|",
+              "WhenOpened": "2025-08-15T13:55:00.235Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
