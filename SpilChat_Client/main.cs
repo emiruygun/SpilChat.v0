@@ -1082,6 +1082,59 @@ namespace ChatApplication
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             }
         }
+        // Kişiler kartı içerik çizimi
+        private void DrawContactCardContent(DrawListViewSubItemEventArgs e, Rectangle cardRect)
+        {
+            var g = e.Graphics;
+
+            string display = e.Item.Text;                 // listede görünen ad
+            string name = NormalizeContact(display);      // sözlük anahtarı (emoji vs temiz)
+
+            // 1) Solda kullanıcı ikonu (Segoe MDL2 Assets → U+E77B)
+            int iconLeft = cardRect.Left + 10;
+            int iconY = cardRect.Top + (cardRect.Height - 16) / 2 - 1;
+            using (var iconFont = new Font("Segoe MDL2 Assets", 16f))
+            using (var iconBrush = new SolidBrush(Color.FromArgb(90, 90, 90)))
+            {
+                g.DrawString("\uE77B", iconFont, iconBrush, iconLeft, iconY);
+            }
+
+            // 2) İsim (ikonun sağında)
+            int textLeft = iconLeft + 20 + 8; // 20px ikon + 8px boşluk
+            var nameRect = new Rectangle(textLeft, cardRect.Top, cardRect.Right - textLeft - 10, cardRect.Height);
+            TextRenderer.DrawText(
+                g, display, new Font("Segoe UI", 10f, FontStyle.Bold), nameRect,
+                Color.FromArgb(32, 31, 30),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
+            );
+
+            // 3) Okunmamış rozeti (sağ)
+            int count;
+            if (_unread.TryGetValue(name, out count) && count > 0)
+            {
+                string badgeText = (count > 99) ? "99+" : count.ToString();
+                using (var badgeFont = new Font("Segoe UI", 9f, FontStyle.Bold))
+                {
+                    var sz = g.MeasureString(badgeText, badgeFont);
+                    int h = Math.Max(16, (int)Math.Ceiling(sz.Height) + 6);
+                    int w = Math.Max(h, (int)Math.Ceiling(sz.Width) + 10);
+
+                    int bx = cardRect.Right - w - 10;
+                    int by = cardRect.Top + (cardRect.Height - h) / 2;
+                    var rect = new Rectangle(bx, by, w, h);
+
+                    using (var path = RoundedRect(rect, h / 2))
+                    using (var fill = new SolidBrush(Color.FromArgb(232, 63, 63)))
+                    using (var white = new SolidBrush(Color.White))
+                    {
+                        g.FillPath(fill, path);
+                        float sx = bx + (w - sz.Width) / 2f;
+                        float sy = by + (h - sz.Height) / 2f - 1f;
+                        g.DrawString(badgeText, badgeFont, white, sx, sy);
+                    }
+                }
+            }
+        }
 
         private void CreateLayout()
         {
@@ -1128,10 +1181,10 @@ namespace ChatApplication
             contactsListView.Columns.Add("", 250);
             contactsListView.ItemSelectionChanged += ContactsListView_ItemSelectionChanged;
 
-            contactsListView.View = View.List;
+            /*contactsListView.View = View.List;
             contactsListView.OwnerDraw = true;
             contactsListView.FullRowSelect = true;
-            contactsListView.HideSelection = false;
+            contactsListView.HideSelection = false;*/
 
             // (İsteğe bağlı) titreme azaltma - bazı sürümlerde Reflection korumalı olabilir
             try
@@ -1145,8 +1198,8 @@ namespace ChatApplication
             }
             catch { /* yoksay */ }
 
-            // Çizim olayı
-            contactsListView.DrawItem += ContactsListView_DrawItem;
+            /* Çizim olayı
+            contactsListView.DrawItem += ContactsListView_DrawItem;*/
 
 
             contactsTab.Controls.Add(contactsSearchPanel);
@@ -1189,7 +1242,7 @@ namespace ChatApplication
             chatsSearchPanel.SendToBack();
 
             // Kart görünümleri
-            StyleListViewAsCards(contactsListView, 44);
+            StyleListViewAsCards(contactsListView, 44, DrawContactCardContent);
             StyleListViewAsCards(chatsListView, 56, DrawChatCardContent);
 
             // Kullanıcı paneli
@@ -1418,59 +1471,45 @@ namespace ChatApplication
         }
         private void ContactsListView_DrawItem(object sender, DrawListViewItemEventArgs e)
         {
-            e.DrawBackground();
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-
-            // Soldaki kullanıcı ikonu (Segoe MDL2 Assets → U+E77B)
-            int iconX = e.Bounds.Left + 12;
-            int iconY = e.Bounds.Top + (e.Bounds.Height - 16) / 2; // 16px hizalama
-            using (var iconFont = new Font("Segoe MDL2 Assets", 14f, FontStyle.Regular))
-            using (var iconBrush = new SolidBrush(Color.FromArgb(90, 90, 90)))
+            e.DrawBackground(); 
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias; // Kişi adı (sol)
+            string name = e.Item.Text;
+            using (Brush textBrush = new SolidBrush(e.Item.ForeColor))
             {
-                // U+E77B "Contact"
-                g.DrawString("\uE77B", iconFont, iconBrush, iconX, iconY - 2); // -2 küçük optik düzeltme
-            }
-
-            // Metin
-            string name = NormalizeContact(e.Item.Text); // artık zaten sade isim
-            using (var textBrush = new SolidBrush(e.Item.ForeColor))
-            {
-                var textFont = e.Item.Font; // Bold olabilir
-                                            // ikon + padding kadar soldan kay
-                int textLeft = iconX + 18 + 8;
-                var textSize = g.MeasureString(name, textFont);
+                Font textFont = e.Item.Font; // dispose etmiyoruz; Item'ın kendisi yönetir
+                SizeF textSize = g.MeasureString(name, textFont);
                 float textY = e.Bounds.Top + (e.Bounds.Height - textSize.Height) / 2f;
-                g.DrawString(name, textFont, textBrush, textLeft, textY);
-            }
-
-            // Rozet (hiçbir değişiklik yok)
+                g.DrawString(name, textFont, textBrush, e.Bounds.Left + 10, textY); 
+            } 
+            // Okunmamış rozeti
             int count;
             if (_unread.TryGetValue(name, out count) && count > 0)
-            {
-                string badgeText = (count > 99) ? "99+" : count.ToString();
-                using (var badgeFont = new Font(e.Item.Font.FontFamily, Math.Max(9f, e.Item.Font.Size - 1f), FontStyle.Bold))
-                {
-                    var sz = g.MeasureString(badgeText, badgeFont);
+            { 
+                string badgeText = (count > 99) ? "99+" : count.ToString(); 
+                // Yazı tipini biraz kalın ve ufak yapalım
+                using (Font badgeFont = new Font(e.Item.Font.FontFamily, Math.Max(9f, e.Item.Font.Size - 1f), FontStyle.Bold))
+                { 
+                    SizeF sz = g.MeasureString(badgeText, badgeFont);
                     int h = Math.Max(16, (int)Math.Ceiling(sz.Height) + 6);
                     int w = Math.Max(h, (int)Math.Ceiling(sz.Width) + 10);
                     int bx = e.Bounds.Right - w - 10;
                     int by = e.Bounds.Top + (e.Bounds.Height - h) / 2;
-                    var rect = new Rectangle(bx, by, w, h);
+                    Rectangle rect = new Rectangle(bx, by, w, h);
                     int r = h / 2;
-
-                    using (var path = RoundedRect(rect, r))
-                    using (var fill = new SolidBrush(Color.FromArgb(232, 63, 63)))
-                    using (var white = new SolidBrush(Color.White))
+                    
+                    using (GraphicsPath path = RoundedRect(rect, r))
+                    using (Brush fill = new SolidBrush(Color.FromArgb(232, 63, 63))) // kırmızı
+                    using (Brush white = new SolidBrush(Color.White))
                     {
                         g.FillPath(fill, path);
+                        
                         float sx = bx + (w - sz.Width) / 2f;
                         float sy = by + (h - sz.Height) / 2f - 1f;
                         g.DrawString(badgeText, badgeFont, white, sx, sy);
                     }
                 }
             }
-
             e.DrawFocusRectangle();
         }
 
