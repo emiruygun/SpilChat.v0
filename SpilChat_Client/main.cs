@@ -14,6 +14,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.AspNetCore.SignalR.Client;
+
 
 namespace ChatApplication
 {
@@ -933,6 +935,13 @@ namespace ChatApplication
         private readonly string currentUsername;
         private string selectedChatUser = "";
         private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        private HubConnection _hub;
+        private readonly HashSet<int> _seenMessageIds = new HashSet<int>(); // dupe guard
+        private static readonly Random _rnd = new Random(); // yeniden bağlanma gecikmesi için
+
+        private int _activeLastId = 0;
+
         // Okunmamış mesaj sayıları (isim -> sayı)
         private readonly Dictionary<string, int> _unread =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -946,10 +955,18 @@ namespace ChatApplication
 
             jsonOpts.Converters.Add(new DateTimeOffsetAssumeLocalConverter());
 
-            Shown += async (_, __) =>
+            // Form kapanırken hub'ı durdur
+            this.FormClosed += async (sender, args) =>
             {
+                try { if (_hub != null) await _hub.StopAsync(); } catch { }
+            };
+
+            // (SignalR’ı başlatıp sonra listeleri yükle)
+            this.Shown += async (sender, args) =>
+            {
+                await InitRealtimeAsync();
                 await LoadContactsAsync();
-                await LoadChatsAsync();               
+                await LoadChatsAsync();
             };
         }
 
@@ -1343,7 +1360,60 @@ namespace ChatApplication
 
             ShowWelcomeMessage();
         }
+        private async Task InitRealtimeAsync()
+        {
+            _hub = new HubConnectionBuilder()
+                .WithUrl(string.Format("{0}/hubs/chat?user={1}", apiBaseUrl, Uri.EscapeDataString(currentUsername)))
+                .WithAutomaticReconnect()
+                .Build();
 
+            // Sunucudan gelen "ReceiveMessage" event'i
+            _hub.On<MessageDto>("ReceiveMessage", msg =>
+            {
+                if (msg == null) return;
+
+                // aynı Id ikinci kez gelirse yoksay
+                if (!_seenMessageIds.Add(msg.Id)) return;
+
+                // UI işini UI thread'e taşı
+                this.BeginInvoke(new Action(delegate
+                {
+                    // gelen mesajın "karşı taraf" anahtarını belirle
+                    string peer = string.Equals(msg.FromUser, currentUsername, StringComparison.OrdinalIgnoreCase)
+                                  ? msg.ToUser
+                                  : msg.FromUser;
+
+                    if (IsActiveConversation(peer))
+                    {
+                        bool outgoing = string.Equals(msg.FromUser, currentUsername, StringComparison.OrdinalIgnoreCase);
+                        AddBubble(msg.Message, outgoing, msg.Timestamp.LocalDateTime);
+                        _activeLastId = (_activeLastId > msg.Id) ? _activeLastId : msg.Id;
+                        ScrollChatToBottom();
+                    }
+                    else
+                    {
+                        // Senin mevcut okunmamış rozeti akışın
+                        OnIncomingMessage(msg.FromUser, msg.Message, msg.Timestamp.LocalDateTime);
+                    }
+                }));
+            });
+
+            // Durum geri bildirimleri (opsiyonel)
+            _hub.Reconnecting += delegate { return System.Threading.Tasks.Task.CompletedTask; };
+            _hub.Reconnected += delegate (string connectionId) { return System.Threading.Tasks.Task.CompletedTask; };
+            _hub.Closed += async delegate
+            {
+                // 1-3 sn rasgele bekle, tekrar bağlanmayı dene
+                try
+                {
+                    await System.Threading.Tasks.Task.Delay(1000 + _rnd.Next(0, 2000));
+                    await _hub.StartAsync();
+                }
+                catch { }
+            };
+
+            await _hub.StartAsync();
+        }
         private void ShowWelcomeMessage()
         {
             chatFlow.Controls.Clear();
@@ -1715,6 +1785,11 @@ namespace ChatApplication
                         bool outgoing = msg.FromUser == currentUsername;
                         AddBubble(msg.Message, outgoing, msg.Timestamp.LocalDateTime);
                     }
+
+                    if (messages.Count > 0)
+                        _activeLastId = messages.Max(m => m.Id);
+                    else
+                        _activeLastId = 0;
                 }
                 else
                 {
