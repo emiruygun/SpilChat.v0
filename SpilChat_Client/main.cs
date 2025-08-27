@@ -1000,6 +1000,11 @@ namespace ChatApplication
         private readonly Dictionary<string, int> _unread =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+        private readonly Dictionary<string, string> _drafts =
+    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        private bool _suspendDraftEvents = false;  // programatik setlerde TextChanged’i baskılamak için
+
 
 
         public MainForm(string username)
@@ -1047,7 +1052,12 @@ namespace ChatApplication
                 return t.ToLocalTime().ToString("HH:mm");
             return t.ToString("HH:mm");
         }
-
+        private void ClearComposer()
+        {
+            if (messageInput == null) return;
+            messageInput.Clear();
+            messageInput.SelectionStart = 0; // imleç başa
+        }
         private static bool ContainsCI(string source, string term)
         {
             if (string.IsNullOrWhiteSpace(term)) return true;
@@ -1379,6 +1389,8 @@ namespace ChatApplication
                 Multiline = true
             };
             messageInput.KeyDown += MessageInput_KeyDown;
+            messageInput.TextChanged += MessageInput_TextChanged;
+
 
             sendButton = new Button
             {
@@ -1414,6 +1426,34 @@ namespace ChatApplication
 
             ShowWelcomeMessage();
         }
+        private void MessageInput_TextChanged(object sender, EventArgs e)
+        {
+            if (_suspendDraftEvents) return;
+            if (!string.IsNullOrEmpty(selectedChatUser))
+                _drafts[selectedChatUser] = messageInput.Text;
+        }
+        private void SaveCurrentDraft()
+        {
+            if (string.IsNullOrEmpty(selectedChatUser)) return;
+            _drafts[selectedChatUser] = messageInput.Text;
+        }
+
+        private void ApplyDraftFor(string peer)
+        {
+            _suspendDraftEvents = true;
+            try
+            {
+                if (!string.IsNullOrEmpty(peer) && _drafts.TryGetValue(peer, out var draft))
+                    messageInput.Text = draft;
+                else
+                    messageInput.Clear();
+
+                messageInput.SelectionStart = messageInput.TextLength; // imleci sona al
+                messageInput.Focus();
+            }
+            finally { _suspendDraftEvents = false; }
+        }
+
         private async Task InitRealtimeAsync()
         {
             _hub = new HubConnectionBuilder()
@@ -1792,9 +1832,11 @@ namespace ChatApplication
         private void ContactsListView_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
         {
             if (!e.IsSelected) return;
+            SaveCurrentDraft(); // önce aktif sohbetin taslağını kaydet
             string contactName = e.Item.Text.Replace("👤 ", "");
             chatTitleLabel.Text = contactName;
             selectedChatUser = contactName;
+            ApplyDraftFor(contactName); // yeni sohbetin taslağını yükle
             ResetUnreadFor(contactName);
             LoadChatHistory(contactName);
         }
@@ -1802,12 +1844,13 @@ namespace ChatApplication
         private void ChatsListView_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
         {
             if (!e.IsSelected) return;
-
+            SaveCurrentDraft(); // önce mevcut taslağı kaydet
             var dto = e.Item.Tag as ConversationItemDto;
             var peer = dto?.Peer ?? e.Item.Text;
 
             chatTitleLabel.Text = peer;
             selectedChatUser = peer;
+            ApplyDraftFor(peer); // yeni sohbetin taslağını yükle
             ResetUnreadFor(peer);
             LoadChatHistory(peer);
         }
@@ -1815,6 +1858,8 @@ namespace ChatApplication
         // --------- Geçmiş ---------
         private async void LoadChatHistory(string chatName)
         {
+            ApplyDraftFor(chatName);
+
             chatFlow.SuspendLayout();
             chatFlow.Controls.Clear();
             selectedChatUser = chatName;
@@ -1923,11 +1968,18 @@ namespace ChatApplication
 
             AddBubble(message, true, now);
 
-            messageInput.Clear();
+            // Input’u temizlerken TextChanged’i tetikleyip eski taslağı ezmemek için:
+            _suspendDraftEvents = true;
+            try { messageInput.Clear(); }
+            finally { _suspendDraftEvents = false; }
+
+            // Aktif sohbetin taslağını da sıfırla
+            _drafts[selectedChatUser] = string.Empty;
+
             messageInput.Focus();
 
             await SendMessageToApi(currentUsername, selectedChatUser, message);
-            await LoadChatsAsync(); // sol "Sohbetler" kartlarını tazele
+            await LoadChatsAsync();
         }
 
         private async Task SendMessageToApi(string fromUser, string toUser, string message)
