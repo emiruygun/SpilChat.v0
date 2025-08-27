@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -14,7 +16,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.AspNetCore.SignalR.Client;
 
 
 namespace ChatApplication
@@ -1458,6 +1459,11 @@ namespace ChatApplication
         {
             _hub = new HubConnectionBuilder()
                 .WithUrl(string.Format("{0}/hubs/chat?user={1}", apiBaseUrl, Uri.EscapeDataString(currentUsername)))
+                .AddJsonProtocol(o =>
+                {
+                    o.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+                    o.PayloadSerializerOptions.Converters.Add(new DateTimeOffsetAssumeLocalConverter());
+                })
                 .WithAutomaticReconnect()
                 .Build();
 
@@ -1474,20 +1480,19 @@ namespace ChatApplication
                 {
                     // gelen mesajın "karşı taraf" anahtarını belirle
                     string peer = string.Equals(msg.FromUser, currentUsername, StringComparison.OrdinalIgnoreCase)
-                                  ? msg.ToUser
-                                  : msg.FromUser;
+            ? msg.ToUser : msg.FromUser;
 
+                    var localTime = msg.Timestamp.ToLocalTime().DateTime; // <<< ÖNEMLİ
                     if (IsActiveConversation(peer))
                     {
                         bool outgoing = string.Equals(msg.FromUser, currentUsername, StringComparison.OrdinalIgnoreCase);
-                        AddBubble(msg.Message, outgoing, msg.Timestamp.LocalDateTime);
-                        _activeLastId = (_activeLastId > msg.Id) ? _activeLastId : msg.Id;
+                        AddBubble(msg.Message, outgoing, localTime);
+                        _activeLastId = Math.Max(_activeLastId, msg.Id);
                         ScrollChatToBottom();
                     }
                     else
                     {
-                        // Senin mevcut okunmamış rozeti akışın
-                        OnIncomingMessage(msg.FromUser, msg.Message, msg.Timestamp.LocalDateTime);
+                        OnIncomingMessage(msg.FromUser, msg.Message, localTime);
                     }
                 }));
             });
@@ -1882,7 +1887,7 @@ namespace ChatApplication
                     foreach (var msg in messages)
                     {
                         bool outgoing = msg.FromUser == currentUsername;
-                        AddBubble(msg.Message, outgoing, msg.Timestamp.LocalDateTime);
+                        AddBubble(msg.Message, outgoing, msg.Timestamp.ToLocalTime().DateTime);
                     }
 
                     if (messages.Count > 0)
@@ -2048,11 +2053,12 @@ namespace ChatApplication
                 var s = reader.GetString();
                 if (string.IsNullOrWhiteSpace(s)) return default;
 
-                if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto))
+                if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var dto))
                     return dto;
 
-                if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var utcDt))
-                    return new DateTimeOffset(utcDt, TimeSpan.Zero).ToLocalTime();
+                // Offset yoksa yerel varsay:
+                if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var localDt))
+                    return new DateTimeOffset(localDt);
             }
 
             if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out long unixMs))
