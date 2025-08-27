@@ -35,6 +35,7 @@ namespace ChatApplication
         private Button cancelButton;
         private Label forgotLabel;
 
+        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         public string LoggedInUsername { get; private set; }
 
         public LoginForm()
@@ -217,7 +218,8 @@ namespace ChatApplication
                 titleLabel, welcomeLabel,
                 usernameLabel, usernameTextBox,
                 passwordLabel, passwordTextBox,
-                forgotLabel, loginButton, cancelButton
+                //forgotLabel,
+                loginButton, cancelButton
             });
 
             rightPanel.Controls.Add(loginPanel);
@@ -280,10 +282,10 @@ namespace ChatApplication
             isDragging = false;
         }
 
-        private void LoginButton_Click(object sender, EventArgs e)
+        private async void LoginButton_Click(object sender, EventArgs e)
         {
-            var user = usernameTextBox.Text.Trim();
-            var pass = passwordTextBox.Text;
+            var user = usernameTextBox.Text != null ? usernameTextBox.Text.Trim() : "";
+            var pass = passwordTextBox.Text ?? "";
 
             if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
             {
@@ -292,9 +294,61 @@ namespace ChatApplication
                 return;
             }
 
-            LoggedInUsername = user;
-            DialogResult = DialogResult.OK;
+            loginButton.Enabled = false;
+            var originalText = loginButton.Text;
+            loginButton.Text = "Giriş yapılıyor...";
+
+            try
+            {
+                var reqObj = new { Username = user, Password = pass };
+                var json = JsonSerializer.Serialize(reqObj);
+
+                using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+                {
+                    var resp = await _http.PostAsync(AppConfig.ApiBaseUrl + "/api/auth/login", content);
+                    var body = await resp.Content.ReadAsStringAsync();
+
+                    LoginResponseDto dto = null;
+                    try
+                    {
+                        dto = JsonSerializer.Deserialize<LoginResponseDto>(
+                            body,
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        );
+                    }
+                    catch { /* JSON beklediğimiz gibi değilse dto null kalır */ }
+
+                    if (resp.IsSuccessStatusCode && dto != null && dto.Ok)
+                    {
+                        LoggedInUsername = dto.Username;
+                        DialogResult = DialogResult.OK;   // sadece API onay verirse içeri al
+                        Close();
+                        return;
+                    }
+
+                    var msg = (dto != null && !string.IsNullOrEmpty(dto.Message))
+                                ? dto.Message
+                                : (!resp.IsSuccessStatusCode ? ((int)resp.StatusCode + " " + resp.ReasonPhrase) : "Giriş başarısız.");
+                    MessageBox.Show(msg, "Giriş Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                MessageBox.Show("İstek zaman aşımına uğradı.", "Zaman Aşımı",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show("API'ye bağlanılamadı: " + ex.Message, "Bağlantı Hatası",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                loginButton.Enabled = true;
+                loginButton.Text = originalText;
+            }
         }
+        private class LoginResponseDto { public bool Ok { get; set; } public string Message { get; set; } public string Username { get; set; } }
     }
 
     // Gradient Panel
@@ -931,7 +985,7 @@ namespace ChatApplication
         private List<ConversationItemDto> chatsMaster = new List<ConversationItemDto>();
 
         private readonly HttpClient httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        private string apiBaseUrl = "http://192.168.1.205:5101";
+        private string apiBaseUrl = AppConfig.ApiBaseUrl;
         private readonly string currentUsername;
         private string selectedChatUser = "";
         private readonly JsonSerializerOptions jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -1908,6 +1962,7 @@ namespace ChatApplication
     // ---------------------- DTO'lar ----------------------
     public class LoginDto { public string Username { get; set; } public string Password { get; set; } }
 
+
     public class SendMessageDto
     {
         public string FromUser { get; set; }
@@ -1957,7 +2012,10 @@ namespace ChatApplication
         public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
             => writer.WriteStringValue(value.ToUniversalTime().ToString("o"));
     }
-
+    internal static class AppConfig
+    {
+        public const string ApiBaseUrl = "http://192.168.1.205:5101"; // kendi host/port
+    }
     // ---------------------- Program ----------------------
     public static class Program
     {
